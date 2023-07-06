@@ -107,9 +107,16 @@ build_man_pages() {
 }
 
 build() {
-	mkdir -p "${builddir}"
 	echo "-- Version: ${version}" >&2
-	if [ "$(go env CC)" = "" ]; then
+
+    if ! command -v go >/dev/null 2>/dev/null; then
+	    echo '-- [!] Go not found in PATH. Exiting.' >&2
+	    exit
+	fi
+
+    mkdir -p "${builddir}"
+	
+    if [ "$(go env CC)" = "" ]; then
         echo '-- [!] No C compiler available. maddy will be built without SQLite3 support and default configuration will be unusable.' >&2
     fi
 
@@ -135,15 +142,34 @@ build() {
 }
 
 install() {
-	echo "-- Installing built files..." >&2
+    # Prompt for elevated priv
+    # Required for writing to /usr/local/bin
+    if [ "$(id -nu)" != "root" ]; then
+        echo "-- Installation requires elevated privileges. PATH will be preserved." >&2
+        sudo --preserve-env=PATH "$0" "install"
+        return
+    else
+       echo "-- Privileges Elevated!" >&2
+    fi
+    set +e
+
+    echo "-- Create maddy user and group..." >&2
+
+    # -m causes skel to be copied. Setting skel dir to /dev/null to prevent that
+    useradd -mrU -s /sbin/nologin -d /var/lib/maddy -K UMASK=0006 -k /dev/null -c "maddy mail server" maddy
+
+    echo "-- Installing built files..." >&2
 
 	command install -m 0755 -d "${destdir}/${prefix}/bin/"
 	command install -m 0755 "${builddir}/maddy" "${destdir}/${prefix}/bin/"
-	command ln -s maddy "${destdir}/${prefix}/bin/maddyctl"
+    command ln -s maddy "${destdir}/${prefix}/bin/maddyctl"
 	command install -m 0755 -d "${destdir}/etc/maddy/"
-	command install -m 0644 ./maddy.conf "${destdir}/etc/maddy/maddy.conf"
 
-	# Attempt to install systemd units only for Linux.
+    if [ ! -f "${destdir}/etc/maddy/maddy.conf" ]; then
+        command install -m 0664 -o maddy -g maddy "${builddir}/maddy.conf" "${destdir}/etc/maddy/maddy.conf"
+    fi
+
+    # Attempt to install systemd units only for Linux.
 	# Check is done using GOOS instead of uname -s to account for possible
 	# package cross-compilation.
 	if [ "$(go env GOOS)" = "linux" ]; then
