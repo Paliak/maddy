@@ -14,8 +14,6 @@ Group=maddy
 
 # Allow members of the maddy group to acces files created by the maddy service
 UMask=0007
-PermissionsStartOnly=true
-ExecStartPost=/bin/bash -c "find . -type f -exec chmod 660 -- {} +"
 
 # cd to state directory to make sure any relative paths
 # in config will be relative to it unless handled specially.
