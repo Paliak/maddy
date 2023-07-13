@@ -166,7 +166,7 @@ install() {
 	command install -m 0755 -d "${destdir}/etc/maddy/"
 
     if [ ! -f "${destdir}/etc/maddy/maddy.conf" ]; then
-        command install -m 0664 -o maddy -g maddy "${builddir}/maddy.conf" "${destdir}/etc/maddy/maddy.conf"
+        command install -m 0660 -o maddy -g maddy "${builddir}/maddy.conf" "${destdir}/etc/maddy/maddy.conf"
     fi
 
     # Attempt to install systemd units only for Linux.
